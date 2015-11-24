@@ -17,7 +17,7 @@ type RConnection interface {
 }
 
 type rconn struct {
-	client        roger.RClient
+	//client        roger.RClient
 	rserve_cmd    *exec.Cmd
 	port          int
 	last_accessed time.Time
@@ -41,7 +41,7 @@ func (c *rconn) StartServe(path string) error {
 }
 
 func (c *rconn) StopServe() {
-	fmt.Println("stop serving..")
+	fmt.Printf("stop serving on %d\n", c.port)
 	c.rserve_cmd.Process.Kill()
 }
 
@@ -65,10 +65,11 @@ func (c *rconn) GetClientWithRetries(retries int) (roger.RClient, error) {
 }
 
 func (c *rconn) GetClient() (roger.RClient, error) {
-	if c.client != nil {
+	/*if c.client != nil {
 		return c.client, nil
-	}
+	}*/
 	rClient, err := roger.NewRClient("127.0.0.1", int64(c.port))
-	c.client = rClient
-	return c.client, err
+	//c.client = rClient
+	//return c.client, err
+	return rClient, err
 }

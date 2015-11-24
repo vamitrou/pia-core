@@ -6,11 +6,13 @@ import (
 	"github.com/linkedin/goavro"
 	"github.com/vamitrou/pia-core/connman"
 	"io/ioutil"
+	"net/http"
+	"os"
 	"strings"
 	"time"
 )
 
-func ForwardAvroBatch(app *CatalogValue, body []byte) {
+func ForwardAvroBatch(app *CatalogValue, body []byte, callback_url string) {
 	outerStr := fmt.Sprintf("applications/%s/%s", app.Id, app.AvroIn[0])
 	innerStr := fmt.Sprintf("applications/%s/%s", app.Id, app.AvroIn[1])
 	_, _, codec := LoadAvroSchema(outerStr, innerStr)
@@ -18,23 +20,59 @@ func ForwardAvroBatch(app *CatalogValue, body []byte) {
 	message, err := codec.Decode(bytes.NewReader(body))
 	check(err)
 	//fmt.Println(message)
-	ProcessR(app, message)
+	data := ProcessR(app, message)
+	if len(callback_url) > 0 {
+		// post request here
+		fmt.Printf("POST: %s\n", callback_url)
+		Callback(callback_url, data)
+	}
 }
 
-func ProcessR(app *CatalogValue, data interface{}) {
+func ProcessR(app *CatalogValue, data interface{}) []byte {
+	filename := fmt.Sprintf("tmp_%d_%s", time.Now().Unix(), randSeq(10))
+	pwdstr := connman.GetPWD()
+	full_file_path := fmt.Sprintf("%s/applications/%s/%s", pwdstr, app.Id, filename)
+	defer os.Remove(full_file_path)
 	if val, ok := data.(*goavro.Record); ok {
-		ConvertAvroToRDataFrame(app, val, "out.Rda")
+		ConvertAvroToRDataFrame(app, val, filename)
 	} else {
 		// throw an error here
+		return nil
+	}
+
+	shared := true
+
+	rClient, err := connman.GetRConnection(app.Id, shared)
+	check(err)
+	_, err = rClient.Eval(fmt.Sprintf("df <- load_data('%s')", full_file_path))
+	check(err)
+	fmt.Println("done")
+	connman.LazyCloseRConnection(app.Id)
+	return make([]byte, 0)
+}
+
+func Callback(url string, data []byte) {
+	req, err := http.NewRequest("POST", url, bytes.NewReader(data))
+	if check_with_abort(err, false) {
+		return
+	}
+	req.Header.Set("Content-Type", "avro/binary")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if check_with_abort(err, false) {
 		return
 	}
 
-	rClient, err := connman.GetRConnection(app.Id)
-	check(err)
-	pwdstr := connman.GetPWD()
-	_, err = rClient.Eval(fmt.Sprintf("df <- load_data('%s/applications/%s/out.Rda')", pwdstr, app.Id))
-	check(err)
-	fmt.Println("done")
+	defer resp.Body.Close()
+	fmt.Println("response status:", resp.Status)
+	fmt.Println("response headers:", resp.Header)
+	body, err := ioutil.ReadAll(resp.Body)
+	if check_with_abort(err, false) {
+		return
+	}
+	fmt.Println("response body:", string(body))
+
 }
 
 func ConvertAvroToRDataFrame(app *CatalogValue, avro *goavro.Record, fname string) {

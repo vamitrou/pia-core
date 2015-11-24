@@ -9,18 +9,22 @@ import (
 
 var connections map[string]interface{} = make(map[string]interface{})
 
-func GetRConnection(app_id string) (roger.RClient, error) {
+func GetRConnection(app_id string, shared bool) (roger.RClient, error) {
 	// get connection
-	if con, ok := connections[app_id]; ok {
+	// shared means the connection will be shared, otherwise it will create a new one
+	if con, ok := connections[app_id]; ok && shared {
 		rcon, ok := con.(*rconn)
 		if !ok {
 			return nil, errors.New("couldn't not assert connection type")
 		}
-		return rcon.client, nil
+		fmt.Println("Reusing connection")
+		return rcon.GetClientWithRetries(3)
+		//return rcon.client, nil
+	} else {
+		fmt.Println("No connection reuse, creating a new one")
 	}
 
 	// no connection, let's create one
-	// get port
 	port := GetFreePort()
 
 	rc := NewRConnection(port)
@@ -33,7 +37,7 @@ func GetRConnection(app_id string) (roger.RClient, error) {
 	return rc.GetClientWithRetries(3)
 }
 
-func CloseRConnection(app_id string) {
+func LazyCloseRConnection(app_id string) {
 	if c, ok := connections[app_id]; ok {
 		if val, ok := c.(*rconn); ok {
 			val.last_accessed = time.Now()

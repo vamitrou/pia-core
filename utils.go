@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/linkedin/goavro"
 	"io/ioutil"
+	"math/rand"
 	"time"
 )
 
@@ -13,19 +14,30 @@ func check(e error) {
 	check_with_abort(e, true)
 }
 
-func check_with_abort(e error, abort bool) {
+func check_with_abort(e error, abort bool) bool {
 	if e != nil {
 		if abort {
 			panic(e)
 		} else {
 			fmt.Println(e)
+			return true
 		}
 	}
+	return false
 }
 
 func timeTrack(start time.Time, name string) {
 	elapsed := time.Since(start)
 	fmt.Printf("%s took %s\n", name, elapsed)
+}
+
+func randSeq(n int) string {
+	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(b)
 }
 
 func LoadAvroSchema(outerFile string, innerFile string) (goavro.RecordSetter, goavro.RecordSetter, goavro.Codec) {

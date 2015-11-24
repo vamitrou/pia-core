@@ -36,7 +36,14 @@ func predict(w http.ResponseWriter, r *http.Request) {
 			if app == nil {
 				http.Error(w, "", http.StatusBadGateway)
 			}
-			ForwardAvroBatch(app, body)
+
+			callback_url := ""
+			if arr, ok := r.URL.Query()["callback"]; ok {
+				if len(arr) > 0 {
+					callback_url = arr[0]
+				}
+			}
+			ForwardAvroBatch(app, body, callback_url)
 
 		} else {
 			http.Error(w, fmt.Sprintf("Content-Type %s not supported.", contentType[0]),
