@@ -9,26 +9,35 @@ import (
 	"time"
 )
 
-type RConnection interface {
-	StartServe(path string, port int) error
-	GetClient() (roger.RClient, error)
-	GetClientWithRetries() (roger.RClient, error)
-	Kill()
-}
-
 type rconn struct {
-	//client        roger.RClient
+	client        roger.RClient
 	rserve_cmd    *exec.Cmd
 	port          int
 	last_accessed time.Time
 }
 
-func NewRConnection(port int) *rconn {
+func NewRConnection() (*rconn, error) {
+	port := GetFreePort()
 	rc := new(rconn)
 	rc.port = port
 	rc.last_accessed = time.Now()
-	return rc
+	pwdstr := GetPWD()
+	if err := rc.StartServe(pwdstr); err != nil {
+		fmt.Println(err)
+	}
+	rClient, err := rc.GetClientWithRetries(5)
+	rc.client = rClient
+
+	return rc, err
 	//return rconn{port: port, last_accessed: time.Now()}
+}
+
+func (rc rconn) Client() roger.RClient {
+	return rc.client
+}
+
+func (r *rconn) Close() {
+	r.StopServe()
 }
 
 func (c *rconn) StartServe(path string) error {

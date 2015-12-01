@@ -20,15 +20,15 @@ func ForwardAvroBatch(app *CatalogValue, body []byte, callback_url string) {
 	message, err := codec.Decode(bytes.NewReader(body))
 	check(err)
 	//fmt.Println(message)
-	data := ProcessR(app, message)
-	if len(callback_url) > 0 {
+	data := ProcessRBatch(app, message)
+	if len(callback_url) > 0 && data != nil {
 		// post request here
 		fmt.Printf("POST: %s\n", callback_url)
 		Callback(callback_url, data)
 	}
 }
 
-func ProcessR(app *CatalogValue, data interface{}) []byte {
+func ProcessRBatch(app *CatalogValue, data interface{}) []byte {
 	filename := fmt.Sprintf("tmp_%d_%s", time.Now().Unix(), randSeq(10))
 	pwdstr := connman.GetPWD()
 	full_file_path := fmt.Sprintf("%s/applications/%s/%s", pwdstr, app.Id, filename)
@@ -40,14 +40,26 @@ func ProcessR(app *CatalogValue, data interface{}) []byte {
 		return nil
 	}
 
-	shared := true
+	//shared := true
+	live := true
 
-	rClient, err := connman.GetRConnection(app.Id, shared)
+	//rc, err := connman.GetRConnection(app.Id, shared)
+	rc, err := connman.GetRConnection(app.Id, live) //connman.NewRConnection()
 	check(err)
-	_, err = rClient.Eval(fmt.Sprintf("df <- load_data('%s')", full_file_path))
+	if !live {
+		defer rc.Close()
+	} else {
+		// defer connman.Recycle(rc)
+	}
+	if rc == nil {
+		return nil
+	}
+	var rClient = rc.Client()
+	out, err := rClient.Eval(fmt.Sprintf("df <- load_data('%s'); print(df)", full_file_path))
 	check(err)
+	fmt.Println(out)
 	fmt.Println("done")
-	connman.LazyCloseRConnection(app.Id)
+	//connman.LazyCloseRConnection(app.Id)
 	return make([]byte, 0)
 }
 
