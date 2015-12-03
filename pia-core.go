@@ -2,11 +2,14 @@ package main
 
 import (
 	"fmt"
+	"github.com/vamitrou/pia-core/pia4r"
+	"github.com/vamitrou/pia-core/piaconf"
+	"github.com/vamitrou/pia-core/piautils"
 	"io/ioutil"
 	"net/http"
 )
 
-var appConf *PiaAppConf = nil
+var appConf *piaconf.PiaAppConf = nil
 
 func predict(w http.ResponseWriter, r *http.Request) {
 	contentType := r.Header["Content-Type"]
@@ -20,27 +23,24 @@ func predict(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	body, err := ioutil.ReadAll(r.Body)
+	piautils.Check(err)
+
+	app := new(piaconf.CatalogValue)
+	err = piaconf.GetApp(application[0], app)
+	piautils.Check(err)
+
+	fmt.Printf("content length: %d\n", r.ContentLength)
+
 	if r.Method == "GET" {
-		// http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		if contentType[0] == "application/json" {
-			body, err := ioutil.ReadAll(r.Body)
-			check(err)
-			ForwardJSONBatch(app, body)
+			pia4r.ForwardJSONBatch(app, body)
 		} else {
 			http.Error(w, fmt.Sprintf("Content-Type %s not supported.", contentType[0]),
 				http.StatusNotAcceptable)
-			return
 		}
 	} else if r.Method == "POST" {
 		if contentType[0] == "avro/binary" {
-			body, err := ioutil.ReadAll(r.Body)
-			check(err)
-
-			fmt.Printf("content length: %d\n", r.ContentLength)
-
-			app := new(CatalogValue)
-			err = GetApp(application[0], app)
-			check(err)
 			if app == nil {
 				http.Error(w, "", http.StatusBadGateway)
 			}
@@ -50,20 +50,27 @@ func predict(w http.ResponseWriter, r *http.Request) {
 				if len(arr) > 0 {
 					callback_url = arr[0]
 				}
+			} else {
+				http.Error(w, "Callback url is required for POST requests.",
+					http.StatusNotAcceptable)
 			}
-			ForwardAvroBatch(app, body, callback_url)
+			if app.Language == "R" {
+				pia4r.ForwardAvroBatch(app, body, callback_url)
+			} else {
+				http.Error(w, fmt.Sprintf("Language %s not supported.", app.Language),
+					http.StatusNotAcceptable)
+			}
 
 		} else {
 			http.Error(w, fmt.Sprintf("Content-Type %s not supported.", contentType[0]),
 				http.StatusNotAcceptable)
-			return
 		}
 
 	}
 }
 
 func main() {
-	appConf = GetConfig()
+	appConf = piaconf.GetConfig()
 
 	fmt.Println("Server started")
 	http.HandleFunc("/prediction", predict)

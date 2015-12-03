@@ -1,10 +1,12 @@
-package main
+package pia4r
 
 import (
 	"bytes"
 	"fmt"
 	"github.com/linkedin/goavro"
 	"github.com/vamitrou/pia-core/connman"
+	"github.com/vamitrou/pia-core/piaconf"
+	"github.com/vamitrou/pia-core/piautils"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -12,13 +14,13 @@ import (
 	"time"
 )
 
-func ForwardAvroBatch(app *CatalogValue, body []byte, callback_url string) {
+func ForwardAvroBatch(app *piaconf.CatalogValue, body []byte, callback_url string) {
 	outerStr := fmt.Sprintf("applications/%s/%s", app.Id, app.AvroIn[0])
 	innerStr := fmt.Sprintf("applications/%s/%s", app.Id, app.AvroIn[1])
-	_, _, codec := LoadAvroSchema(outerStr, innerStr)
+	_, _, codec := piautils.LoadAvroSchema(outerStr, innerStr)
 
 	message, err := codec.Decode(bytes.NewReader(body))
-	check(err)
+	piautils.Check(err)
 	//fmt.Println(message)
 	data := ProcessRBatch(app, message)
 	if len(callback_url) > 0 && data != nil {
@@ -28,13 +30,17 @@ func ForwardAvroBatch(app *CatalogValue, body []byte, callback_url string) {
 	}
 }
 
-func ProcessRBatch(app *CatalogValue, data interface{}) []byte {
-	filename := fmt.Sprintf("tmp_%d_%s", time.Now().Unix(), randSeq(10))
+func ForwardJSONBatch(app *piaconf.CatalogValue, body []byte) {
+
+}
+
+func ProcessRBatch(app *piaconf.CatalogValue, data interface{}) []byte {
+	filename := fmt.Sprintf("tmp_%d_%s", time.Now().Unix(), piautils.RandSeq(10))
 	pwdstr := connman.GetPWD()
 	full_file_path := fmt.Sprintf("%s/applications/%s/%s", pwdstr, app.Id, filename)
 	defer os.Remove(full_file_path)
 	if val, ok := data.(*goavro.Record); ok {
-		// check for errors
+		// piautils.Check for errors
 		ConvertAvroToRDataFrame(app, val, filename)
 	} else {
 		// throw an error here
@@ -46,7 +52,7 @@ func ProcessRBatch(app *CatalogValue, data interface{}) []byte {
 
 	//rc, err := connman.GetRConnection(app.Id, shared)
 	rc, err := connman.GetRConnection(app.Id, live) //connman.NewRConnection()
-	check(err)
+	piautils.Check(err)
 	if !live {
 		defer rc.Close()
 	} else {
@@ -58,13 +64,13 @@ func ProcessRBatch(app *CatalogValue, data interface{}) []byte {
 	}
 	var rClient = rc.Client()
 	rSession, err := rClient.GetSession()
-	check(err)
+	piautils.Check(err)
 	//_, err = rClient.Eval(fmt.Sprintf("df <- load_data('%s')", full_file_path))
 	rSession.SendCommand(fmt.Sprintf("df <- load_data('%s')", full_file_path)).GetResultObject()
-	check(err)
+	piautils.Check(err)
 	// out, err := rClient.Eval(fmt.Sprintf("print(df)", full_file_path))
 	out, err := rSession.SendCommand("print(df)").GetResultObject()
-	check(err)
+	piautils.Check(err)
 	fmt.Println(out)
 	fmt.Println("done")
 	//connman.LazyCloseRConnection(app.Id)
@@ -73,14 +79,14 @@ func ProcessRBatch(app *CatalogValue, data interface{}) []byte {
 
 func Callback(url string, data []byte) {
 	req, err := http.NewRequest("POST", url, bytes.NewReader(data))
-	if check_with_abort(err, false) {
+	if piautils.Check_with_abort(err, false) {
 		return
 	}
 	req.Header.Set("Content-Type", "avro/binary")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
-	if check_with_abort(err, false) {
+	if piautils.Check_with_abort(err, false) {
 		return
 	}
 
@@ -88,26 +94,26 @@ func Callback(url string, data []byte) {
 	fmt.Println("response status:", resp.Status)
 	fmt.Println("response headers:", resp.Header)
 	body, err := ioutil.ReadAll(resp.Body)
-	if check_with_abort(err, false) {
+	if piautils.Check_with_abort(err, false) {
 		return
 	}
 	fmt.Println("response body:", string(body))
 
 }
 
-func ConvertAvroToRDataFrame(app *CatalogValue, avro *goavro.Record, fname string) {
-	defer timeTrack(time.Now(), "convertAvroToRdataFrame")
+func ConvertAvroToRDataFrame(app *piaconf.CatalogValue, avro *goavro.Record, fname string) {
+	defer piautils.TimeTrack(time.Now(), "convertAvroToRdataFrame")
 	var buffer bytes.Buffer
 	buffer.WriteString("structure(list(\n\n")
 
 	claims, err := avro.Get("claims")
-	check(err)
+	piautils.Check(err)
 	var cl []interface{}
 	if clarr, ok := claims.([]interface{}); ok {
 		cl = clarr
 	}
 
-	props := GetAvroFields(avro, "claims")
+	props := piautils.GetAvroFields(avro, "claims")
 	//props := GetAvroFields(fmt.Sprintf("applications/%s/%s", app.Id, app.AvroIn[1]))
 	var propStrings []string
 	for i, prop := range props {
@@ -162,7 +168,7 @@ func ContainsStrings(prop string, claims []interface{}) bool {
 func Get(avro interface{}, field string) interface{} {
 	if rec, ok := avro.(*goavro.Record); ok {
 		val, err := rec.Get(field)
-		check(err)
+		piautils.Check(err)
 		return val
 	}
 	return nil
