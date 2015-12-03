@@ -34,6 +34,7 @@ func ProcessRBatch(app *CatalogValue, data interface{}) []byte {
 	full_file_path := fmt.Sprintf("%s/applications/%s/%s", pwdstr, app.Id, filename)
 	defer os.Remove(full_file_path)
 	if val, ok := data.(*goavro.Record); ok {
+		// check for errors
 		ConvertAvroToRDataFrame(app, val, filename)
 	} else {
 		// throw an error here
@@ -52,10 +53,17 @@ func ProcessRBatch(app *CatalogValue, data interface{}) []byte {
 		// defer connman.Recycle(rc)
 	}
 	if rc == nil {
+		// handle this error
 		return nil
 	}
 	var rClient = rc.Client()
-	out, err := rClient.Eval(fmt.Sprintf("df <- load_data('%s'); print(df)", full_file_path))
+	rSession, err := rClient.GetSession()
+	check(err)
+	//_, err = rClient.Eval(fmt.Sprintf("df <- load_data('%s')", full_file_path))
+	rSession.SendCommand(fmt.Sprintf("df <- load_data('%s')", full_file_path)).GetResultObject()
+	check(err)
+	// out, err := rClient.Eval(fmt.Sprintf("print(df)", full_file_path))
+	out, err := rSession.SendCommand("print(df)").GetResultObject()
 	check(err)
 	fmt.Println(out)
 	fmt.Println("done")

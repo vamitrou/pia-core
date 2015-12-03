@@ -32,7 +32,7 @@ func NewRConnection() (*rconn, error) {
 	//return rconn{port: port, last_accessed: time.Now()}
 }
 
-func (rc rconn) Client() roger.RClient {
+func (rc *rconn) Client() roger.RClient {
 	return rc.client
 }
 

@@ -21,8 +21,16 @@ func predict(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == "GET" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
+		// http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		if contentType[0] == "application/json" {
+			body, err := ioutil.ReadAll(r.Body)
+			check(err)
+			ForwardJSONBatch(app, body)
+		} else {
+			http.Error(w, fmt.Sprintf("Content-Type %s not supported.", contentType[0]),
+				http.StatusNotAcceptable)
+			return
+		}
 	} else if r.Method == "POST" {
 		if contentType[0] == "avro/binary" {
 			body, err := ioutil.ReadAll(r.Body)
