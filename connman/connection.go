@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/senseyeio/roger"
+	"github.com/vamitrou/pia-core/piautils"
 	"os/exec"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 
 type rconn struct {
 	client        roger.RClient
+	session       roger.Session
 	rserve_cmd    *exec.Cmd
 	port          int
 	last_accessed time.Time
@@ -21,7 +23,7 @@ func NewRConnection() (*rconn, error) {
 	rc := new(rconn)
 	rc.port = port
 	rc.last_accessed = time.Now()
-	pwdstr := GetPWD()
+	pwdstr := piautils.GetPWD()
 	if err := rc.StartServe(pwdstr); err != nil {
 		fmt.Println(err)
 	}
@@ -32,8 +34,24 @@ func NewRConnection() (*rconn, error) {
 	//return rconn{port: port, last_accessed: time.Now()}
 }
 
-func (rc *rconn) Client() roger.RClient {
+func (rc rconn) Client() roger.RClient {
 	return rc.client
+}
+
+func (rc *rconn) Session() (roger.Session, error) {
+	var err error
+	if rc.session == nil {
+		rc.session, err = rc.client.GetSession()
+		if err != nil {
+			rc.session = nil
+		}
+	}
+	return rc.session, err
+}
+
+func (rc *rconn) CloseSession() {
+	rc.session.Close()
+	rc.session = nil
 }
 
 func (r *rconn) Close() {

@@ -30,43 +30,41 @@ func predict(w http.ResponseWriter, r *http.Request) {
 	err = piaconf.GetApp(application[0], app)
 	piautils.Check(err)
 
+	callback_url := ""
+	if arr, ok := r.URL.Query()["callback"]; ok {
+		if len(arr) > 0 {
+			callback_url = arr[0]
+		}
+	}
 	fmt.Printf("content length: %d\n", r.ContentLength)
 
-	if r.Method == "GET" {
-		if contentType[0] == "application/json" {
-			pia4r.ForwardJSONBatch(app, body)
-		} else {
-			http.Error(w, fmt.Sprintf("Content-Type %s not supported.", contentType[0]),
+	var data []byte
+	if r.Method == "POST" {
+		switch app.Language {
+		case "R":
+			data, err = pia4r.Process(app, body, contentType[0])
+			piautils.Check(err)
+		default:
+			http.Error(w, fmt.Sprintf("Language %s not supported.", app.Language),
 				http.StatusNotAcceptable)
-		}
-	} else if r.Method == "POST" {
-		if contentType[0] == "avro/binary" {
-			if app == nil {
-				http.Error(w, "", http.StatusBadGateway)
-			}
-
-			callback_url := ""
-			if arr, ok := r.URL.Query()["callback"]; ok {
-				if len(arr) > 0 {
-					callback_url = arr[0]
-				}
-			} else {
-				http.Error(w, "Callback url is required for POST requests.",
-					http.StatusNotAcceptable)
-			}
-			if app.Language == "R" {
-				pia4r.ForwardAvroBatch(app, body, callback_url)
-			} else {
-				http.Error(w, fmt.Sprintf("Language %s not supported.", app.Language),
-					http.StatusNotAcceptable)
-			}
-
-		} else {
-			http.Error(w, fmt.Sprintf("Content-Type %s not supported.", contentType[0]),
-				http.StatusNotAcceptable)
+			return
 		}
 
+		fmt.Printf("Callback url: %s\n", callback_url)
+		if len(callback_url) > 0 {
+			err = piautils.Post(callback_url, data, contentType[0])
+			piautils.Check_with_abort(err, false)
+		}
+	} else {
+		http.Error(w, fmt.Sprintf("Method not supported.", contentType[0]),
+			http.StatusNotAcceptable)
 	}
+}
+
+func dummy_callback(w http.ResponseWriter, r *http.Request) {
+	body, err := ioutil.ReadAll(r.Body)
+	piautils.Check(err)
+	fmt.Println(string(body))
 }
 
 func main() {
@@ -74,67 +72,6 @@ func main() {
 
 	fmt.Println("Server started")
 	http.HandleFunc("/prediction", predict)
+	http.HandleFunc("/dummy_callback", dummy_callback)
 	http.ListenAndServe("0.0.0.0:8000", nil)
 }
-
-/*func test_avro() {
-
-	record_schema := `{
-	    "name": "Claim",
-	    "type": "record",
-	    "fields": [
-	    {
-		"name": "GD_OE_ID", "type": "int"
-	    },
-	    {
-		"name": "TEST_FIELD", "type": "string"
-	    }
-	    ]
-	}`
-
-	schema := `{
-		"name": "Claims",
-		"type": "record",
-		"fields": [
-		    {
-			"name": "claims",
-			"type": "array",
-			"items": %s
-		    }
-		]
-	    }`
-
-	codec, _ := goavro.NewCodec(fmt.Sprintf(schema, record_schema))
-	fmt.Println(codec)
-
-	var claims []interface{}
-	s := goavro.RecordSchema(record_schema)
-	fmt.Println(s)
-	claim, _ := goavro.NewRecord(goavro.RecordSchema(record_schema))
-	claim.Set("GD_OE_ID", int64(1))
-	claim.Set("TEST_FIELD", "tessssst")
-	claims = append(claims, claim)
-
-	rSchema := goavro.RecordSchema(fmt.Sprintf(schema, record_schema))
-	outerRecord, err := goavro.NewRecord(rSchema)
-	if err != nil {
-		fmt.Println("ERROR:")
-		fmt.Println(err)
-	}
-	outerRecord.Set("claims", claims)
-
-	GetAvroFields(outerRecord, "claims")
-}
-
-func GetAvroFields(record *goavro.Record, object string) []string {
-	schema, _ := record.GetFieldSchema(object)
-	items := schema.(map[string]interface{})["items"]
-	fields := items.(map[string]interface{})["fields"].([]interface{})
-	ret_fields := make([]string, len(fields))
-	for _, field := range fields {
-		f := field.(map[string]interface{})["name"].(string)
-		fmt.Println(f)
-		ret_fields = append(ret_fields, f)
-	}
-	return ret_fields
-}*/

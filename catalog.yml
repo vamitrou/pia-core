@@ -4,4 +4,5 @@ applications:
   prog_lang: R
   avro_in: [claims.json, claim.json]
   avro_out: [scores.json, score.json]
-  entry_cmd: predict_fraud.R
+  init_cmd: print ('init')
+  exec_cmd: print ('exec')
