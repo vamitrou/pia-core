@@ -14,7 +14,7 @@ import (
 
 var appConf *piaconf.PiaAppConf = nil
 
-func ServePost(app *piaconf.CatalogValue, contentType string, body []byte) ([]byte, error) {
+func ServePost(app *piaconf.CatalogValue, contentType string, body []byte, synchronous bool) ([]byte, error) {
 	switch app.Language {
 	case "R":
 		return pia4r.Process(app, body, contentType, synchronous)
@@ -54,18 +54,20 @@ func predict(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "POST" {
 		if synchronous {
-			w.Header().Set("Content-Type", contentType[0])
-			data, err := ServePost(app, contentType[0], body, "")
+			data, err := ServePost(app, contentType[0], body, synchronous)
 			if err != nil {
 				io.WriteString(w, err.Error())
 			} else {
+				w.Header().Set("Content-Type", contentType[0])
 				io.WriteString(w, string(data))
 			}
 		} else {
 			go func() {
-				data, err := ServePost(app, contentType[0], body, callback_url)
+				data, err := ServePost(app, contentType[0], body, synchronous)
+				piautils.Check_with_abort(err, false)
 				if err != nil {
-					err := piautils.Post(callback_url, []byte(err.Error()), "application/json")
+					j_err := []byte(fmt.Sprintf("{\"error\": \"%s\"}", err.Error()))
+					err := piautils.Post(callback_url, j_err, "application/json")
 					piautils.Check_with_abort(err, false)
 				} else {
 					err := piautils.Post(callback_url, data, contentType[0])

@@ -112,6 +112,8 @@ func processJSON(app *piaconf.CatalogValue, body []byte, live bool) ([]byte, err
 	err := json.Unmarshal(body, &j)
 	if live && len(j) > 10 {
 		return nil, errors.New("Synchronous API allows maximum 10 elements")
+	} else if len(j) > 3000 {
+		return nil, errors.New("Unsupported batch size: %d, maximum size: 3000")
 	}
 	piautils.Check(err)
 	filename := fmt.Sprintf("tmp_%d_%s", time.Now().Unix(), piautils.RandSeq(10))
@@ -123,7 +125,7 @@ func processJSON(app *piaconf.CatalogValue, body []byte, live bool) ([]byte, err
 	//fmt.Println(j)
 	pwdstr := piautils.GetPWD()
 	filepath := fmt.Sprintf("%s/applications/%s/tmp/%s", pwdstr, app.Id, filename)
-	fmt.Println(filepath)
+	//fmt.Println(filepath)
 	data, err := processDataFrame(app, filepath, live)
 	if err != nil {
 		return nil, err
