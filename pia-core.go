@@ -52,29 +52,7 @@ func predict(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Printf("content length: %d\n", r.ContentLength)
 
-	//var data []byte
 	if r.Method == "POST" {
-		/*switch app.Language {
-		case "R":
-			data, err = pia4r.Process(app, body, contentType[0], synchronous)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusNotAcceptable)
-			}
-			piautils.Check_with_abort(err, false)
-		default:
-			http.Error(w, fmt.Sprintf("Language %s not supported.", app.Language),
-				http.StatusNotAcceptable)
-			return
-		}
-
-		w.Header().Set("Content-Type", contentType[0])
-		fmt.Printf("Callback url: %s\n", callback_url)
-		if synchronous > 0 {
-			err = piautils.Post(callback_url, data, contentType[0])
-			piautils.Check_with_abort(err, false)
-		} else {
-			io.WriteString(w, string(data))
-		}*/
 		if synchronous {
 			w.Header().Set("Content-Type", contentType[0])
 			data, err := ServePost(app, contentType[0], body, "")
