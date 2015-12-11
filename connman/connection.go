@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/senseyeio/roger"
+	"github.com/vamitrou/pia-core/piaconf"
 	"github.com/vamitrou/pia-core/piautils"
 	"os/exec"
 	"strings"
@@ -31,20 +32,25 @@ func NewRConnection() (*rconn, error) {
 	rc.client = rClient
 
 	return rc, err
-	//return rconn{port: port, last_accessed: time.Now()}
 }
 
 func (rc rconn) Client() roger.RClient {
 	return rc.client
 }
 
-func (rc *rconn) Session() (roger.Session, error) {
+func (rc *rconn) Session(app *piaconf.CatalogValue) (roger.Session, error) {
 	var err error
 	if rc.session == nil {
 		rc.session, err = rc.client.GetSession()
 		if err != nil {
 			rc.session = nil
 		}
+		pwd := piautils.GetPWD()
+		cmd := fmt.Sprintf("source ('%s/applications/%s/%s')", pwd, app.Id, app.InitScript)
+		// check for errors
+		fmt.Println("loading init script")
+		rc.session.SendCommand(cmd)
+		fmt.Println("init script loaded successfully")
 	}
 	return rc.session, err
 }
@@ -76,6 +82,8 @@ func (c *rconn) GetClientWithRetries(retries int) (roger.RClient, error) {
 	connected := false
 	connect_attempts := 0
 	var rClient roger.RClient
+
+	start_time := time.Now()
 	for connect_attempts < retries && !connected {
 		//rClient, err := roger.NewRClient("127.0.0.1", int64(c.port))
 		rClient, err := c.GetClient()
@@ -83,9 +91,12 @@ func (c *rconn) GetClientWithRetries(retries int) (roger.RClient, error) {
 			connected = true
 			return rClient, nil
 		} else {
-			fmt.Println(fmt.Sprintf("Cannot connect to RServe:%d, retrying in 2 seconds..", c.port))
-			time.Sleep(2 * time.Second)
-			connect_attempts += 1
+			if time.Since(start_time) > 10*time.Second {
+				fmt.Println(fmt.Sprintf("Cannot connect to RServe:%d, aborting after 10 seconds..", c.port))
+				break
+			}
+			time.Sleep(100 * time.Millisecond)
+			//connect_attempts += 1
 		}
 	}
 	return rClient, errors.New("exceeded R Connection retries")

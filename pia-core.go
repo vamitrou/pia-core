@@ -2,6 +2,9 @@ package main
 
 import (
 	"fmt"
+	"io"
+	//"github.com/vamitrou/pia-core/connman"
+	"errors"
 	"github.com/vamitrou/pia-core/pia4r"
 	"github.com/vamitrou/pia-core/piaconf"
 	"github.com/vamitrou/pia-core/piautils"
@@ -10,6 +13,15 @@ import (
 )
 
 var appConf *piaconf.PiaAppConf = nil
+
+func ServePost(app *piaconf.CatalogValue, contentType string, body []byte) ([]byte, error) {
+	switch app.Language {
+	case "R":
+		return pia4r.Process(app, body, contentType, synchronous)
+	default:
+		return nil, errors.New(fmt.Sprintf("Language %s not supported.", app.Language))
+	}
+}
 
 func predict(w http.ResponseWriter, r *http.Request) {
 	contentType := r.Header["Content-Type"]
@@ -31,47 +43,71 @@ func predict(w http.ResponseWriter, r *http.Request) {
 	piautils.Check(err)
 
 	callback_url := ""
+	synchronous := true
 	if arr, ok := r.URL.Query()["callback"]; ok {
 		if len(arr) > 0 {
 			callback_url = arr[0]
+			synchronous = false
 		}
 	}
 	fmt.Printf("content length: %d\n", r.ContentLength)
 
-	var data []byte
+	//var data []byte
 	if r.Method == "POST" {
-		switch app.Language {
+		/*switch app.Language {
 		case "R":
-			data, err = pia4r.Process(app, body, contentType[0])
-			piautils.Check(err)
+			data, err = pia4r.Process(app, body, contentType[0], synchronous)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusNotAcceptable)
+			}
+			piautils.Check_with_abort(err, false)
 		default:
 			http.Error(w, fmt.Sprintf("Language %s not supported.", app.Language),
 				http.StatusNotAcceptable)
 			return
 		}
 
+		w.Header().Set("Content-Type", contentType[0])
 		fmt.Printf("Callback url: %s\n", callback_url)
-		if len(callback_url) > 0 {
+		if synchronous > 0 {
 			err = piautils.Post(callback_url, data, contentType[0])
 			piautils.Check_with_abort(err, false)
+		} else {
+			io.WriteString(w, string(data))
+		}*/
+		if synchronous {
+			w.Header().Set("Content-Type", contentType[0])
+			data, err := ServePost(app, contentType[0], body, "")
+			if err != nil {
+				io.WriteString(w, err.Error())
+			} else {
+				io.WriteString(w, string(data))
+			}
+		} else {
+			go func() {
+				data, err := ServePost(app, contentType[0], body, callback_url)
+				if err != nil {
+					err := piautils.Post(callback_url, []byte(err.Error()), "application/json")
+					piautils.Check_with_abort(err, false)
+				} else {
+					err := piautils.Post(callback_url, data, contentType[0])
+					piautils.Check_with_abort(err, false)
+				}
+			}()
+			io.WriteString(w, fmt.Sprintf("Response will be posted to: %s", callback_url))
 		}
+
 	} else {
 		http.Error(w, fmt.Sprintf("Method not supported.", contentType[0]),
 			http.StatusNotAcceptable)
 	}
 }
 
-func dummy_callback(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
-	piautils.Check(err)
-	fmt.Println(string(body))
-}
-
 func main() {
 	appConf = piaconf.GetConfig()
+	//connman.WarmUpConnections(appConf)
 
 	fmt.Println("Server started")
 	http.HandleFunc("/prediction", predict)
-	http.HandleFunc("/dummy_callback", dummy_callback)
 	http.ListenAndServe("0.0.0.0:8000", nil)
 }

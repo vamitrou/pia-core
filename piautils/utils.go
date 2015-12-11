@@ -123,3 +123,11 @@ func GetAvroFields(record *goavro.Record, object string) []string {
 	}
 	return ret_fields
 }
+
+func GetJSONFields(record map[string]interface{}) []string {
+	keys := make([]string, 0)
+	for k, _ := range record {
+		keys = append(keys, k)
+	}
+	return keys
+}

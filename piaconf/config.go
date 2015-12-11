@@ -6,21 +6,21 @@ import (
 	"io/ioutil"
 )
 
-var _appConf *PiaAppConf = nil
+var appConf *PiaAppConf = nil
 
 type PiaAppConf struct {
 	Applications []CatalogValue `yaml:"applications"`
 }
 
 type CatalogValue struct {
-	Id       string   `yaml:"id"`
-	Name     string   `yaml:"name"`
-	Language string   `yaml:"prog_lang"`
-	Command  string   `yaml:"entry_cmd"`
-	AvroIn   []string `yaml:"avro_in"`
-	AvroOut  []string `yaml:"avro_out"`
-	InitCmd  string   `yaml:"init_cmd"`
-	ExecCmd  string   `yaml:"exec_cmd"`
+	Id         string   `yaml:"id"`
+	Name       string   `yaml:"name"`
+	Language   string   `yaml:"prog_lang"`
+	Command    string   `yaml:"entry_cmd"`
+	AvroIn     []string `yaml:"avro_in"`
+	AvroOut    []string `yaml:"avro_out"`
+	InitScript string   `yaml:"init_script"`
+	ExecCmd    string   `yaml:"exec_cmd"`
 }
 
 func (c *PiaAppConf) Load(path string) error {
@@ -33,11 +33,11 @@ func (c *PiaAppConf) Load(path string) error {
 }
 
 func GetConfig() *PiaAppConf {
-	if _appConf == nil {
-		_appConf = new(PiaAppConf)
-		_appConf.Load("catalog.yml")
+	if appConf == nil {
+		appConf = new(PiaAppConf)
+		appConf.Load("catalog.yml")
 	}
-	return _appConf
+	return appConf
 }
 
 func GetApp(appId string, appConf *CatalogValue) error {

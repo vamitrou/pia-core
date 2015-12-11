@@ -2,6 +2,7 @@ package connman
 
 import (
 	"fmt"
+	"github.com/vamitrou/pia-core/piaconf"
 	"time"
 )
 
@@ -22,6 +23,17 @@ func GetRConnection(app_id string, live bool) (*rconn, error) {
 	} else {
 		rc, err := NewRConnection()
 		return rc, err
+	}
+}
+
+func WarmUpConnections(conf *piaconf.PiaAppConf) {
+	for _, app := range piaconf.GetConfig().Applications {
+		_, err := GetRConnection(app.Id, true)
+		if err != nil {
+			fmt.Printf("Could not start connection for %s.\n", app.Id)
+		} else {
+			fmt.Printf("Started connection for %s.\n", app.Id)
+		}
 	}
 }
 

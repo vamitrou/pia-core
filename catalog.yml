@@ -4,5 +4,5 @@ applications:
   prog_lang: R
   avro_in: [claims.json, claim.json]
   avro_out: [scores.json, score.json]
-  init_cmd: print ('init')
-  exec_cmd: print ('exec')
+  init_script: rest_init_fraud.R
+  exec_cmd: predict_rest(abt<-$in)
