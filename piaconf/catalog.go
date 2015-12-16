@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 )
 
+var catalog_path string = ""
 var appConf *PiaAppConf = nil
 
 type PiaAppConf struct {
@@ -24,7 +25,8 @@ type CatalogValue struct {
 }
 
 func (c *PiaAppConf) Load(path string) error {
-	dat, err := ioutil.ReadFile("catalog.yml")
+	catalog_path = path
+	dat, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
 	}
@@ -32,21 +34,33 @@ func (c *PiaAppConf) Load(path string) error {
 	return err
 }
 
-func GetConfig() *PiaAppConf {
-	if appConf == nil {
-		appConf = new(PiaAppConf)
-		appConf.Load("catalog.yml")
-	}
-	return appConf
+func LoadConfig(path string) error {
+	catalog_path = path
+	_, err := GetConfig()
+	return err
 }
 
-func GetApp(appId string, appConf *CatalogValue) error {
-	conf := GetConfig()
+func GetConfig() (*PiaAppConf, error) {
+	var err error
+	if appConf == nil {
+		if len(catalog_path) == 0 {
+			return nil, errors.New("Catalog not loaded.")
+		}
+		appConf = new(PiaAppConf)
+		err = appConf.Load(catalog_path)
+	}
+	return appConf, err
+}
+
+func GetApp(appId string) (*CatalogValue, error) {
+	conf, err := GetConfig()
+	if err != nil {
+		return &CatalogValue{}, err
+	}
 	for _, app := range conf.Applications {
 		if app.Id == appId {
-			*appConf = app
-			return nil
+			return &app, nil
 		}
 	}
-	return errors.New("App not found")
+	return &CatalogValue{}, errors.New("App not found")
 }

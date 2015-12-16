@@ -1,6 +1,6 @@
 applications:
 - id: 69d625646b72e723394de7de1d0dd2a213959cc1
-  name: test_app
+  name: fraud
   prog_lang: R
   avro_in: [claims.json, claim.json]
   avro_out: [scores.json, score.json]

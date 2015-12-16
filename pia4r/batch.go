@@ -77,7 +77,7 @@ func processDataFrame(app *piaconf.CatalogValue, filepath string, live bool) ([]
 		defer rSession.Close()
 	}
 	piautils.Check(err)
-	rSession.SendCommand(fmt.Sprintf("df <- load_data('%s')", filepath))
+	rSession.SendCommand(fmt.Sprintf("df <- dget('%s')", filepath))
 	//fmt.Println("loading init script")
 	//pwdstr := piautils.GetPWD()
 	//source_cmd := fmt.Sprintf("source('%s/applications/%s/%s')", pwdstr, app.Id, app.InitScript)
@@ -91,13 +91,7 @@ func processDataFrame(app *piaconf.CatalogValue, filepath string, live bool) ([]
 		fmt.Println(filepath)
 		return nil, err
 	}
-	/*var j map[string]interface{}
-	out_json := out.(string)
-	err = json.Unmarshal([]byte(out_json), &j)
-	if err != nil {
-		fmt.Println("ERROR in decoding json")
-	}
-	//fmt.Println(j) */
+	//fmt.Println(out)
 	fmt.Println("done")
 
 	if str_val, ok := out.(string); ok {
