@@ -11,24 +11,37 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"time"
 )
 
 var appConf *piaconf.PiaAppConf = nil
 
-func ServePost(app *piaconf.CatalogValue, contentType string, body []byte, synchronous bool) ([]byte, error) {
+func ServePost(reqId string, app *piaconf.CatalogValue, contentType string, body []byte, synchronous bool) ([]byte, error) {
 	switch app.Language {
 	case "R":
-		return pia4r.Process(app, body, contentType, synchronous)
+		return pia4r.Process(reqId, app, body, contentType, synchronous)
 	default:
 		return nil, errors.New(fmt.Sprintf("Language %s not supported.", app.Language))
 	}
 }
 
 func predict(w http.ResponseWriter, r *http.Request) {
-	rid := uuid.New()
-	pialog.Info(rid, "Incoming request from:", r.Host)
 	contentType := r.Header["Content-Type"]
 	application := r.Header["Application"]
+
+	callback_url := ""
+	synchronous := true
+	if arr, ok := r.URL.Query()["callback"]; ok {
+		if len(arr) > 0 {
+			callback_url = arr[0]
+			synchronous = false
+		}
+	}
+
+	rid := uuid.New()
+	pialog.Trace(rid, r.Host, r.Method, "synchronous:", synchronous, "Content-Length:",
+		r.ContentLength, "Application:", application, "Content-Type:", contentType)
+
 	if len(contentType) == 0 {
 		pialog.Error(rid, "Missing Content-Type")
 		http.Error(w, "Missing Content-Type", http.StatusNotAcceptable)
@@ -46,48 +59,39 @@ func predict(w http.ResponseWriter, r *http.Request) {
 	app, err := piaconf.GetApp(application[0])
 	piautils.Check(err)
 
-	callback_url := ""
-	synchronous := true
-	if arr, ok := r.URL.Query()["callback"]; ok {
-		if len(arr) > 0 {
-			callback_url = arr[0]
-			synchronous = false
-		}
-	}
-
-	pialog.Info(rid, r.Method, "synchronous:", synchronous, "Content-Length:",
-		r.ContentLength, "Application:", application[0], "Content-Type:", contentType[0])
-
+	start := time.Now()
 	if r.Method == "POST" {
 		if synchronous {
-			data, err := ServePost(app, contentType[0], body, synchronous)
+			data, err := ServePost(rid, app, contentType[0], body, synchronous)
 			if err != nil {
 				pialog.Error(rid, "Error serving POST request:", err.Error())
 				io.WriteString(w, err.Error())
 			} else {
 				w.Header().Set("Content-Type", contentType[0])
 				io.WriteString(w, string(data))
+				pialog.Trace(rid, "Success after", time.Since(start))
 			}
 		} else {
 			go func() {
-				data, err := ServePost(app, contentType[0], body, synchronous)
-				piautils.Check_with_abort(err, false)
+				data, err := ServePost(rid, app, contentType[0], body, synchronous)
 				if err != nil {
+					pialog.Error(rid, err.Error())
 					j_err := []byte(fmt.Sprintf("{\"error\": \"%s\"}", err.Error()))
 					err := piautils.Post(callback_url, j_err, "application/json")
 					if err != nil {
-						pialog.Error(rid, "Error serving POST request:", err.Error())
+						pialog.Error(rid, err.Error())
 					}
 				} else {
 					err := piautils.Post(callback_url, data, contentType[0])
 					if err != nil {
-						pialog.Error(rid, "Error serving POST request:", err.Error())
+						pialog.Error(rid, err.Error())
+					} else {
+						pialog.Trace(rid, "Success after", time.Since(start))
 					}
 				}
 			}()
-			io.WriteString(w, fmt.Sprintf("Response will be posted to: %s", callback_url))
+			io.WriteString(w, fmt.Sprintf("Response will be posted to: %s\n", callback_url))
 		}
-
 	} else {
 		pialog.Error(rid, "Method", r.Method, "not supported")
 		http.Error(w, fmt.Sprintf("Method not supported.", contentType[0]),

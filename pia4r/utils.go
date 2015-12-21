@@ -14,8 +14,9 @@ import (
 	"time"
 )
 
-func convertToRDataFrame(app *piaconf.CatalogValue, data interface{}, fname string) error {
-	defer piautils.TimeTrack(time.Now(), "convertToRDataFrame")
+func convertToRDataFrame(app *piaconf.CatalogValue, data interface{}, fname string) (time.Duration, error) {
+	//defer piautils.TimeTrack(time.Now(), "convertToRDataFrame")
+	start := time.Now()
 	var buffer bytes.Buffer
 
 	EnsureTempDir(app)
@@ -27,7 +28,7 @@ func convertToRDataFrame(app *piaconf.CatalogValue, data interface{}, fname stri
 	if avro, ok := data.(*goavro.Record); ok {
 		avro_claims, err := avro.Get("claims")
 		if err != nil {
-			return err
+			return -1, err
 		}
 		claims_arr = avro_claims.([]interface{})
 		props = piautils.GetAvroFields(avro, "claims")
@@ -38,12 +39,12 @@ func convertToRDataFrame(app *piaconf.CatalogValue, data interface{}, fname stri
 		}
 		//claims_arr = j_arr
 		if len(claims_arr) == 0 {
-			return errors.New("List of JSON input is empty")
+			return -1, errors.New("List of JSON input is empty")
 		}
 		el := claims_arr[0].(map[string]interface{})
 		props = piautils.GetJSONFields(el)
 	} else {
-		return errors.New(fmt.Sprintf("unsupported input: %s", reflect.TypeOf(data)))
+		return -1, errors.New(fmt.Sprintf("unsupported input: %s", reflect.TypeOf(data)))
 	}
 
 	var propStrings []string
@@ -80,7 +81,7 @@ func convertToRDataFrame(app *piaconf.CatalogValue, data interface{}, fname stri
 	buffer.WriteString(fmt.Sprintf("), row.names = c(NA, -%dL), class = \"data.frame\")", len(claims_arr)))
 
 	//fmt.Println(buffer.String())
-	return ioutil.WriteFile(fmt.Sprintf("applications/%s/tmp/%s", app.Id, fname), buffer.Bytes(), 0644)
+	return time.Since(start), ioutil.WriteFile(fmt.Sprintf("applications/%s/tmp/%s", app.Id, fname), buffer.Bytes(), 0644)
 }
 
 func DeleteTempFile(app *piaconf.CatalogValue, filename string) {
@@ -89,12 +90,7 @@ func DeleteTempFile(app *piaconf.CatalogValue, filename string) {
 }
 
 func EnsureTempDir(app *piaconf.CatalogValue) {
-	pwd := piautils.GetPWD()
-	app_tmp_dir := fmt.Sprintf("%s/applications/%s/tmp", pwd, app.Id)
-	_, err := os.Stat(app_tmp_dir)
-	if err != nil {
-		os.Mkdir(app_tmp_dir, 0777)
-	}
+	piautils.EnsureDir(app, "tmp")
 }
 
 func ContainsStrings(prop string, claims []interface{}) bool {
@@ -103,19 +99,6 @@ func ContainsStrings(prop string, claims []interface{}) bool {
 		if _, ok := val.(string); ok {
 			return true
 		}
-		/*if len(ToString(val)) == 0 {
-			fmt.Println("empty string:", val)
-			return true
-		}
-		if _, ok := val.(float64); !ok {
-			if _, ok := val.(int64); !ok {
-				if _, ok := val.(bool); !ok {
-					fmt.Println("float64:", val)
-					fmt.Println("ok: ", ok)
-					return true
-				}
-			}
-		}*/
 	}
 	return false
 }

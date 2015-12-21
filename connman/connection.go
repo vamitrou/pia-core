@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/senseyeio/roger"
 	"github.com/vamitrou/pia-core/piaconf"
+	"github.com/vamitrou/pia-core/pialog"
 	"github.com/vamitrou/pia-core/piautils"
 	"os/exec"
 	"strings"
@@ -38,7 +39,7 @@ func (rc rconn) Client() roger.RClient {
 	return rc.client
 }
 
-func (rc *rconn) Session(app *piaconf.CatalogValue) (roger.Session, error) {
+func (rc *rconn) Session(reqId string, app *piaconf.CatalogValue) (roger.Session, error) {
 	var err error
 	if rc.session == nil {
 		rc.session, err = rc.client.GetSession()
@@ -48,9 +49,10 @@ func (rc *rconn) Session(app *piaconf.CatalogValue) (roger.Session, error) {
 		pwd := piautils.GetPWD()
 		cmd := fmt.Sprintf("source ('%s/applications/%s/%s')", pwd, app.Id, app.InitScript)
 		// check for errors
-		fmt.Println("loading init script")
+		pialog.Trace(reqId, "Loading init script")
+		start := time.Now()
 		rc.session.SendCommand(cmd)
-		fmt.Println("init script loaded successfully")
+		pialog.Trace(reqId, "Init script loaded in", time.Since(start))
 	}
 	return rc.session, err
 }
@@ -60,8 +62,9 @@ func (rc *rconn) CloseSession() {
 	rc.session = nil
 }
 
-func (r *rconn) Close() {
+func (r *rconn) Close(reqId string) {
 	r.StopServe()
+	pialog.Trace(reqId, "Stopped serving R on", r.port)
 }
 
 func (c *rconn) StartServe(path string) error {
@@ -74,7 +77,6 @@ func (c *rconn) StartServe(path string) error {
 }
 
 func (c *rconn) StopServe() {
-	fmt.Printf("stop serving on %d\n", c.port)
 	c.rserve_cmd.Process.Kill()
 }
 

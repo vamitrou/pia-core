@@ -1,27 +1,28 @@
 package connman
 
 import (
-	"fmt"
-	//"github.com/vamitrou/pia-core/piaconf"
+	"github.com/vamitrou/pia-core/pialog"
 	"time"
 )
 
 var live_connections map[string]interface{} = make(map[string]interface{})
 
-func GetRConnection(app_id string, live bool) (*rconn, error) {
+func GetRConnection(reqId string, app_id string, live bool) (*rconn, error) {
 	if live {
 		if conn, ok := live_connections[app_id]; ok {
-			fmt.Println("reusing connection")
+			pialog.Trace(reqId, "Reusing connection for", app_id)
 			c, _ := conn.(*rconn)
 			c.last_accessed = time.Now()
 			return c, nil
 		} else {
 			rc, err := NewRConnection()
+			pialog.Trace(reqId, "New R connection on port", rc.port)
 			live_connections[app_id] = rc
 			return rc, err
 		}
 	} else {
 		rc, err := NewRConnection()
+		pialog.Trace(reqId, "New R connection on port", rc.port)
 		return rc, err
 	}
 }
@@ -37,7 +38,7 @@ func GetRConnection(app_id string, live bool) (*rconn, error) {
 	}
 }*/
 
-func Recycle(rc *rconn) {
+/*func Recycle(rc *rconn) {
 	keepAlive := 30.0
 	accessed_before := time.Since(rc.last_accessed).Seconds()
 	fmt.Println(accessed_before)
@@ -49,4 +50,4 @@ func Recycle(rc *rconn) {
 		time.Sleep(dur)
 		go Recycle(rc)
 	}
-}
+}*/

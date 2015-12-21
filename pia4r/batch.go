@@ -8,25 +8,25 @@ import (
 	"github.com/linkedin/goavro"
 	"github.com/vamitrou/pia-core/connman"
 	"github.com/vamitrou/pia-core/piaconf"
+	"github.com/vamitrou/pia-core/pialog"
 	"github.com/vamitrou/pia-core/piautils"
 	"strings"
 	"time"
 )
 
-func Process(app *piaconf.CatalogValue, body []byte, contentType string, live bool) ([]byte, error) {
+func Process(reqId string, app *piaconf.CatalogValue, body []byte, contentType string, live bool) ([]byte, error) {
 	contentType = strings.Trim(strings.Split(contentType, ";")[0], " ")
-	fmt.Println(contentType)
 	switch contentType {
 	case "avro/binary":
-		return processAvro(app, body, live)
+		return processAvro(reqId, app, body, live)
 	case "application/json":
-		return processJSON(app, body, live)
+		return processJSON(reqId, app, body, live)
 	default:
 		return nil, errors.New(fmt.Sprintf("Not supported Content Type: %s", contentType))
 	}
 }
 
-func processAvro(app *piaconf.CatalogValue, body []byte, live bool) ([]byte, error) {
+func processAvro(reqId string, app *piaconf.CatalogValue, body []byte, live bool) ([]byte, error) {
 	outerStr := fmt.Sprintf("applications/%s/%s", app.Id, app.AvroIn[0])
 	innerStr := fmt.Sprintf("applications/%s/%s", app.Id, app.AvroIn[1])
 	_, _, codec := piautils.LoadAvroSchema(outerStr, innerStr)
@@ -38,10 +38,11 @@ func processAvro(app *piaconf.CatalogValue, body []byte, live bool) ([]byte, err
 
 	filename := fmt.Sprintf("tmp_%d_%s", time.Now().Unix(), piautils.RandSeq(10))
 	if avroRec, ok := message.(*goavro.Record); ok {
-		err = convertToRDataFrame(app, avroRec, filename)
+		dur, err := convertToRDataFrame(app, avroRec, filename)
 		if err != nil {
 			return nil, err
 		}
+		pialog.Trace(reqId, "Convert to data frame took:", dur)
 		defer DeleteTempFile(app, filename)
 	} else {
 		return nil, errors.New("Could not convert body to Avro.")
@@ -49,27 +50,27 @@ func processAvro(app *piaconf.CatalogValue, body []byte, live bool) ([]byte, err
 
 	pwdstr := piautils.GetPWD()
 	filepath := fmt.Sprintf("%s/applications/%s/tmp/%s", pwdstr, app.Id, filename)
-	data, err := processDataFrame(app, filepath, live)
+	data, err := processDataFrame(reqId, app, filepath, live)
 	if err != nil {
 		return nil, err
 	}
 	return data, nil
 }
 
-func processDataFrame(app *piaconf.CatalogValue, filepath string, live bool) ([]byte, error) {
+func processDataFrame(reqId string, app *piaconf.CatalogValue, filepath string, live bool) ([]byte, error) {
 	//live := true
 
-	rc, err := connman.GetRConnection(app.Id, live) //connman.NewRConnection()
+	rc, err := connman.GetRConnection(reqId, app.Id, live) //connman.NewRConnection()
 	piautils.Check(err)
 	if !live {
-		defer rc.Close()
+		defer rc.Close(reqId)
 	} else {
 		// defer connman.Recycle(rc)
 	}
 	if rc == nil {
 		return nil, errors.New("Could not get connection.")
 	}
-	rSession, err := rc.Session(app)
+	rSession, err := rc.Session(reqId, app)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +78,9 @@ func processDataFrame(app *piaconf.CatalogValue, filepath string, live bool) ([]
 		defer rSession.Close()
 	}
 	piautils.Check(err)
+	start := time.Now()
 	rSession.SendCommand(fmt.Sprintf("df <- dget('%s')", filepath))
+	pialog.Trace(reqId, "Dataframe loaded in", time.Since(start))
 	//fmt.Println("loading init script")
 	//pwdstr := piautils.GetPWD()
 	//source_cmd := fmt.Sprintf("source('%s/applications/%s/%s')", pwdstr, app.Id, app.InitScript)
@@ -85,14 +88,18 @@ func processDataFrame(app *piaconf.CatalogValue, filepath string, live bool) ([]
 
 	//piautils.Check(err)
 	//fmt.Println("init script loaded successfully")
-	cmd := strings.Replace(app.ExecCmd, "$in", "df", -1)
+	cmd := strings.Replace(app.ExecCmd, "$in", "ddf", -1)
+	start = time.Now()
 	out, err := rSession.SendCommand(cmd).GetResultObject()
 	if err != nil {
-		fmt.Println(filepath)
+		error_filepath := strings.Replace(filepath, "tmp", "error_data", 1)
+		pialog.Warn(reqId, "Failed execution, input will be copied to", error_filepath)
+		piautils.EnsureDir(app, "error_data")
+		piautils.CopyFile(filepath, error_filepath)
 		return nil, err
 	}
+	pialog.Trace(reqId, "Command executed in:", time.Since(start))
 	//fmt.Println(out)
-	fmt.Println("done")
 
 	if str_val, ok := out.(string); ok {
 		return []byte(str_val), nil
@@ -101,26 +108,29 @@ func processDataFrame(app *piaconf.CatalogValue, filepath string, live bool) ([]
 	}
 }
 
-func processJSON(app *piaconf.CatalogValue, body []byte, live bool) ([]byte, error) {
+func processJSON(reqId string, app *piaconf.CatalogValue, body []byte, live bool) ([]byte, error) {
 	var j []map[string]interface{}
 	err := json.Unmarshal(body, &j)
+	if err != nil {
+		return nil, errors.New("Malformed JSON input")
+	}
 	if live && len(j) > 10 {
 		return nil, errors.New("Synchronous API allows maximum 10 elements")
 	} else if len(j) > 3000 {
 		return nil, errors.New("Unsupported batch size: %d, maximum size: 3000")
 	}
-	piautils.Check(err)
 	filename := fmt.Sprintf("tmp_%d_%s", time.Now().Unix(), piautils.RandSeq(10))
-	err = convertToRDataFrame(app, j, filename)
+	dur, err := convertToRDataFrame(app, j, filename)
 	if err != nil {
 		return nil, err
 	}
+	pialog.Trace(reqId, "Convert to data frame took:", dur)
 	defer DeleteTempFile(app, filename)
 	//fmt.Println(j)
 	pwdstr := piautils.GetPWD()
 	filepath := fmt.Sprintf("%s/applications/%s/tmp/%s", pwdstr, app.Id, filename)
 	//fmt.Println(filepath)
-	data, err := processDataFrame(app, filepath, live)
+	data, err := processDataFrame(reqId, app, filepath, live)
 	if err != nil {
 		return nil, err
 	}
