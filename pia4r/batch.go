@@ -88,7 +88,7 @@ func processDataFrame(reqId string, app *piaconf.CatalogValue, filepath string, 
 
 	//piautils.Check(err)
 	//fmt.Println("init script loaded successfully")
-	cmd := strings.Replace(app.ExecCmd, "$in", "ddf", -1)
+	cmd := strings.Replace(app.ExecCmd, "$in", "df", -1)
 	start = time.Now()
 	out, err := rSession.SendCommand(cmd).GetResultObject()
 	if err != nil {
