@@ -90,7 +90,7 @@ func predict(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 			}()
-			io.WriteString(w, fmt.Sprintf("Response will be posted to: %s\n", callback_url))
+			io.WriteString(w, rid)
 		}
 	} else {
 		pialog.Error(rid, "Method", r.Method, "not supported")
@@ -100,17 +100,15 @@ func predict(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	appCatalogPath := "catalog.yml"
-	serverAddress := "0.0.0.0"
-	serverPort := 8000
 	version := 0.1
+	appConfig := GetPiaConfig("pia-core.toml")
 
 	pialog.InitializeLogging()
 
 	pialog.Info("Starting pia-core version:", version)
-	pialog.Info("Loading applications config:", appCatalogPath)
+	pialog.Info("Loading applications config:", appConfig.Local.CatalogPath)
 
-	err := piaconf.LoadConfig(appCatalogPath)
+	err := piaconf.LoadConfig(appConfig.Local.CatalogPath)
 	if err != nil {
 		pialog.Error(err.Error())
 		panic(err)
@@ -118,9 +116,9 @@ func main() {
 
 	pialog.Info("Applications config loaded")
 
-	pialog.Info("Server started: ", serverAddress, ":", serverPort)
+	pialog.Info("Server started:", fmt.Sprintf("%s:%d", appConfig.Local.Listen, appConfig.Local.Port))
 	http.HandleFunc("/prediction", predict)
-	err = http.ListenAndServe(fmt.Sprintf("%s:%d", serverAddress, serverPort), nil)
+	err = http.ListenAndServe(fmt.Sprintf("%s:%d", appConfig.Local.Listen, appConfig.Local.Port), nil)
 	if err != nil {
 		pialog.Error("Could not start server")
 		pialog.Error(err.Error())

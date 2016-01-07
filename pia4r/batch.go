@@ -92,7 +92,7 @@ func processDataFrame(reqId string, app *piaconf.CatalogValue, filepath string, 
 	start = time.Now()
 	out, err := rSession.SendCommand(cmd).GetResultObject()
 	if err != nil {
-		error_filepath := strings.Replace(filepath, "tmp", "error_data", 1)
+		error_filepath := strings.Replace(filepath, "/tmp/", "/error_data/", 1)
 		pialog.Warn(reqId, "Failed execution, input will be copied to", error_filepath)
 		piautils.EnsureDir(app, "error_data")
 		piautils.CopyFile(filepath, error_filepath)
