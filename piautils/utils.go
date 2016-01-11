@@ -12,8 +12,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
-	"os/exec"
-	"strings"
+	"path/filepath"
 	"time"
 )
 
@@ -38,10 +37,16 @@ func TimeTrack(start time.Time, name string) {
 	fmt.Printf("%s took %s\n", name, elapsed)
 }
 
+func AppDir() string {
+	dir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
+	return dir
+}
+
 func GetPWD() string {
-	pwd, _ := exec.Command("pwd").Output()
+	return AppDir()
+	/*pwd, _ := exec.Command("pwd").Output()
 	pwdstr := strings.Trim(string(pwd), "\n\t\r")
-	return pwdstr
+	return pwdstr*/
 }
 
 func EnsureDir(app *piaconf.CatalogValue, dirname string) {

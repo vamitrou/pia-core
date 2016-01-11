@@ -27,8 +27,8 @@ func Process(reqId string, app *piaconf.CatalogValue, body []byte, contentType s
 }
 
 func processAvro(reqId string, app *piaconf.CatalogValue, body []byte, live bool) ([]byte, error) {
-	outerStr := fmt.Sprintf("applications/%s/%s", app.Id, app.AvroIn[0])
-	innerStr := fmt.Sprintf("applications/%s/%s", app.Id, app.AvroIn[1])
+	outerStr := fmt.Sprintf("%s/applications/%s/%s", piautils.AppDir(), app.Id, app.AvroIn[0])
+	innerStr := fmt.Sprintf("%s/applications/%s/%s", piautils.AppDir(), app.Id, app.AvroIn[1])
 	_, _, codec := piautils.LoadAvroSchema(outerStr, innerStr)
 
 	message, err := codec.Decode(bytes.NewReader(body))
@@ -61,7 +61,9 @@ func processDataFrame(reqId string, app *piaconf.CatalogValue, filepath string, 
 	//live := true
 
 	rc, err := connman.GetRConnection(reqId, app.Id, live) //connman.NewRConnection()
-	piautils.Check(err)
+	if err != nil {
+		return nil, err
+	}
 	if !live {
 		defer rc.Close(reqId)
 	} else {
@@ -77,7 +79,6 @@ func processDataFrame(reqId string, app *piaconf.CatalogValue, filepath string, 
 	if !live {
 		defer rSession.Close()
 	}
-	piautils.Check(err)
 	start := time.Now()
 	rSession.SendCommand(fmt.Sprintf("df <- dget('%s')", filepath))
 	pialog.Trace(reqId, "Dataframe loaded in", time.Since(start))

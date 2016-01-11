@@ -54,10 +54,16 @@ func predict(w http.ResponseWriter, r *http.Request) {
 	}
 
 	body, err := ioutil.ReadAll(r.Body)
-	piautils.Check(err)
+	if err != nil {
+		pialog.Error(err)
+		return
+	}
 
 	app, err := piaconf.GetApp(application[0])
-	piautils.Check(err)
+	if err != nil {
+		pialog.Error(err)
+		return
+	}
 
 	start := time.Now()
 	if r.Method == "POST" {
@@ -101,17 +107,25 @@ func predict(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	version := 0.1
-	appConfig := GetPiaConfig("pia-core.toml")
+
+	dir := piautils.AppDir()
 
 	pialog.InitializeLogging()
 
 	pialog.Info("Starting pia-core version:", version)
+
+	appConfig, err := GetPiaConfig(fmt.Sprintf("%s/pia-core.toml", dir))
+	if err != nil {
+		pialog.Error(err)
+		return
+	}
+
 	pialog.Info("Loading applications config:", appConfig.Local.CatalogPath)
 
-	err := piaconf.LoadConfig(appConfig.Local.CatalogPath)
+	err = piaconf.LoadConfig(fmt.Sprintf("%s/%s", dir, appConfig.Local.CatalogPath))
 	if err != nil {
 		pialog.Error(err.Error())
-		panic(err)
+		return
 	}
 
 	pialog.Info("Applications config loaded")
