@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"github.com/pborman/uuid"
 	"github.com/vamitrou/pia-core/pia4r"
@@ -13,6 +14,8 @@ import (
 	"net/http"
 	"time"
 )
+
+var version string = "0.1.0"
 
 var appConf *piaconf.PiaAppConf = nil
 
@@ -106,9 +109,15 @@ func predict(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	version := 0.1
-
 	dir := piautils.AppDir()
+
+	var v bool
+	flag.BoolVar(&v, "v", false, "Asks for version")
+	flag.Parse()
+	if v {
+		fmt.Println("Pia-core version:", version)
+		return
+	}
 
 	pialog.InitializeLogging()
 

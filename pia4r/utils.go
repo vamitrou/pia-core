@@ -81,7 +81,7 @@ func convertToRDataFrame(app *piaconf.CatalogValue, data interface{}, fname stri
 	buffer.WriteString(fmt.Sprintf("), row.names = c(NA, -%dL), class = \"data.frame\")", len(claims_arr)))
 
 	//fmt.Println(buffer.String())
-	return time.Since(start), ioutil.WriteFile(fmt.Sprintf("applications/%s/tmp/%s", app.Id, fname), buffer.Bytes(), 0644)
+	return time.Since(start), ioutil.WriteFile(fmt.Sprintf("%s/applications/%s/tmp/%s", piautils.AppDir(), app.Id, fname), buffer.Bytes(), 0644)
 }
 
 func DeleteTempFile(app *piaconf.CatalogValue, filename string) {
