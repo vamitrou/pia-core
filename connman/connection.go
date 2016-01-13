@@ -47,7 +47,8 @@ func (rc *rconn) Session(reqId string, app *piaconf.CatalogValue) (roger.Session
 			rc.session = nil
 		}
 		pwd := piautils.GetPWD()
-		cmd := fmt.Sprintf("source ('%s/applications/%s/%s')", pwd, app.Id, app.InitScript)
+		rc.session.SendCommand(fmt.Sprintf("setwd('%s/applications/%s/')", pwd, app.Id))
+		cmd := fmt.Sprintf("source ('%s')", app.InitScript)
 		// check for errors
 		pialog.Trace(reqId, "Loading init script")
 		start := time.Now()
