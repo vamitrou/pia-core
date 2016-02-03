@@ -2,7 +2,22 @@ applications:
 - id: 69d625646b72e723394de7de1d0dd2a213959cc1
   name: fraud
   prog_lang: R
-  avro_in: [claims.json, claim.json]
-  avro_out: [scores.json, score.json]
-  init_script: rest_init_fraud.R
+  avro_in:
+  - claims.json
+  - claim.json
+  avro_out:
+  - scores.json
+  - score.json
   exec_cmd: predict_rest(abt<-$in)
+  init_script: rest_init_fraud.R
+- id: 3e98ec792344607c5492365416087d13818b4385
+  name: white
+  prog_lang: R
+  avro_in:
+  - claims.json
+  - claim.json
+  avro_out:
+  - scores.json
+  - score.json
+  exec_cmd: predict_rest(abt<-$in)
+  init_script: rest_init_fraud.R

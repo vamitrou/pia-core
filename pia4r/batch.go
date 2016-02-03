@@ -36,7 +36,8 @@ func processAvro(reqId string, app *piaconf.CatalogValue, body []byte, live bool
 		return nil, err
 	}
 
-	filename := fmt.Sprintf("tmp_%d_%s", time.Now().Unix(), piautils.RandSeq(10))
+	// filename := fmt.Sprintf("tmp_%d_%s", time.Now().Unix(), piautils.RandSeq(10))
+	filename := reqId
 	if avroRec, ok := message.(*goavro.Record); ok {
 		dur, err := convertToRDataFrame(app, avroRec, filename)
 		if err != nil {
@@ -95,6 +96,7 @@ func processDataFrame(reqId string, app *piaconf.CatalogValue, filepath string, 
 	if err != nil {
 		error_filepath := strings.Replace(filepath, "/tmp/", "/error_data/", 1)
 		pialog.Warn(reqId, "Failed execution, input will be copied to", error_filepath)
+		pialog.Error(out)
 		piautils.EnsureDir(app, "error_data")
 		piautils.CopyFile(filepath, error_filepath)
 		return nil, err
