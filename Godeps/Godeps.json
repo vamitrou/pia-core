@@ -1,0 +1,32 @@
+{
+	"ImportPath": "github.com/vamitrou/pia-core",
+	"GoVersion": "go1.5",
+	"Deps": [
+		{
+			"ImportPath": "github.com/BurntSushi/toml",
+			"Comment": "v0.1.0-21-g056c9bc",
+			"Rev": "056c9bc7be7190eaa7715723883caffa5f8fa3e4"
+		},
+		{
+			"ImportPath": "github.com/golang/snappy",
+			"Rev": "723cc1e459b8eea2dea4583200fd60757d40097a"
+		},
+		{
+			"ImportPath": "github.com/linkedin/goavro",
+			"Rev": "f04489eae1ebc55d81daaba1118b781d28c0d5f4"
+		},
+		{
+			"ImportPath": "github.com/pborman/uuid",
+			"Rev": "dee7705ef7b324f27ceb85a121c61f2c2e8ce988"
+		},
+		{
+			"ImportPath": "github.com/senseyeio/roger",
+			"Comment": "0.1.0-25-g831ec5f",
+			"Rev": "831ec5fe3aa59fdb7bf7452609d43008d5608d67"
+		},
+		{
+			"ImportPath": "gopkg.in/yaml.v2",
+			"Rev": "53feefa2559fb8dfa8d81baad31be332c97d6c77"
+		}
+	]
+}
