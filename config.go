@@ -2,7 +2,7 @@ package main
 
 import (
 	"errors"
-	"github.com/vamitrou/pia-core/Godeps/_workspace/src/github.com/BurntSushi/toml"
+	"github.com/BurntSushi/toml"
 )
 
 var _pia *PiaCoreConf = nil

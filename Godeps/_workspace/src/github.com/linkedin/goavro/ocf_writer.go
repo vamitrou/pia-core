@@ -30,7 +30,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/vamitrou/pia-core/Godeps/_workspace/src/github.com/golang/snappy"
+	"github.com/golang/snappy"
 )
 
 // DefaultWriterBlockSizeo specifies the default number of datum items

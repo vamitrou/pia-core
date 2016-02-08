@@ -28,7 +28,7 @@ import (
 	"io"
 	"io/ioutil"
 
-	"github.com/vamitrou/pia-core/Godeps/_workspace/src/github.com/golang/snappy"
+	"github.com/golang/snappy"
 )
 
 // ErrReaderInit is returned when the encoder encounters an error.

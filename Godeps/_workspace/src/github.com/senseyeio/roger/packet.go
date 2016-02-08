@@ -2,7 +2,7 @@ package roger
 
 import (
 	"errors"
-	"github.com/vamitrou/pia-core/Godeps/_workspace/src/github.com/senseyeio/roger/sexp"
+	"github.com/senseyeio/roger/sexp"
 	"strconv"
 )
 

@@ -20,7 +20,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/vamitrou/pia-core/Godeps/_workspace/src/github.com/linkedin/goavro"
+	"github.com/linkedin/goavro"
 	"log"
 	"net"
 )
