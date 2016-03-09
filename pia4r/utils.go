@@ -57,7 +57,8 @@ func convertToRDataFrame(app *piaconf.CatalogValue, data interface{}, fname stri
 			var attrs []string
 			for _, claim := range claims_arr {
 
-				val := strings.Replace(ToString(Get(claim, prop)), "\"", "'", -1)
+				//val := strings.Replace(ToString(Get(claim, prop)), "\"", "'", -1)
+				val := EscapeValue(ToString(Get(claim, prop)))
 				attrs = append(attrs, fmt.Sprintf("\"%s\"", val))
 			}
 			buffer.WriteString(strings.Join(attrs, ", "))
@@ -82,6 +83,12 @@ func convertToRDataFrame(app *piaconf.CatalogValue, data interface{}, fname stri
 
 	//fmt.Println(buffer.String())
 	return time.Since(start), ioutil.WriteFile(fmt.Sprintf("%s/applications/%s/tmp/%s", piautils.AppDir(), app.Id, fname), buffer.Bytes(), 0644)
+}
+
+func EscapeValue(val string) string {
+	val = strings.Replace(val, "\"", "'", -1)
+	val = strings.Replace(val, "\\", " ", -1)
+	return val
 }
 
 func DeleteTempFile(app *piaconf.CatalogValue, filename string) {

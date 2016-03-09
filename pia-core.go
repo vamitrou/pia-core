@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-var version string = "0.2.2"
+var version string = "0.3.3"
 
 var appConf *piaconf.PiaAppConf = nil
 

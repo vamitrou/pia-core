@@ -29,7 +29,7 @@ func NewRConnection() (*rconn, error) {
 	if err := rc.StartServe(pwdstr); err != nil {
 		fmt.Println(err)
 	}
-	rClient, err := rc.GetClientWithRetries(5)
+	rClient, err := rc.GetClientWithRetries(1000000)
 	rc.client = rClient
 
 	return rc, err
@@ -94,12 +94,13 @@ func (c *rconn) GetClientWithRetries(retries int) (roger.RClient, error) {
 			connected = true
 			return rClient, nil
 		} else {
-			if time.Since(start_time) > 10*time.Second {
-				fmt.Println(fmt.Sprintf("Cannot connect to RServe:%d, aborting after 10 seconds..", c.port))
+			if time.Since(start_time) > 60*time.Second {
+				fmt.Println(fmt.Sprintf("Cannot connect to RServe:%d, aborted after 60 seconds..", c.port))
 				break
 			}
+			connect_attempts += 1
+			//time.Sleep((100 + time.Duration(connect_attempts)*10) * time.Millisecond)
 			time.Sleep(100 * time.Millisecond)
-			//connect_attempts += 1
 		}
 	}
 	return rClient, errors.New("exceeded R Connection retries")
