@@ -79,6 +79,7 @@ func (c *rconn) StartServe(path string) error {
 
 func (c *rconn) StopServe() {
 	c.rserve_cmd.Process.Kill()
+	c.rserve_cmd.Wait()
 }
 
 func (c *rconn) GetClientWithRetries(retries int) (roger.RClient, error) {
